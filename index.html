@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta property="og:title" content="Orbit Gallery — Turn your photos into 3D art">
+<meta property="og:description" content="Drop your photos onto a rotating 3D shape. Cylinder, sphere, torus, helix — runs entirely in your browser.">
+<meta property="og:image" content="og-image.svg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Orbit Gallery — Turn your photos into 3D art">
+<meta name="twitter:description" content="Drop your photos onto a rotating 3D shape. Free, no uploads, runs in browser.">
+<meta name="twitter:image" content="og-image.svg">
+<meta name="description" content="Drop your photos onto a rotating 3D shape. Cylinder, sphere, torus, helix — runs entirely in your browser. No account, no uploads.">
+<title>Orbit Gallery — Turn your photos into 3D art</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;1,9..40,300&family=Instrument+Serif:ital@0;1&display=swap');
+
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+:root{
+  --bg:#fff;
+  --ink:#0a0a0a;
+  --dim:rgba(10,10,10,0.38);
+  --line:rgba(10,10,10,0.07);
+  --glass:rgba(255,255,255,0.82);
+  --sans:'DM Sans',system-ui,sans-serif;
+  --serif:'Instrument Serif',Georgia,serif;
+  --r:6px;
+}
+
+html,body{
+  width:100%;height:100%;overflow:hidden;
+  background:var(--bg);
+  touch-action:none;
+  font-family:var(--sans);
+  -webkit-font-smoothing:antialiased;
+}
+
+canvas{display:block;width:100%;height:100%}
+
+/* ── vignette: very subtle, just a breath of depth ── */
+#vig{
+  position:fixed;inset:0;pointer-events:none;z-index:2;
+  background:radial-gradient(ellipse 90% 85% at 50% 50%,
+    transparent 40%,
+    rgba(255,255,255,0.08) 65%,
+    rgba(255,255,255,0.55) 82%,
+    rgba(255,255,255,0.9) 100%);
+}
+#grain{
+  position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.018;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size:180px;
+}
+
+/* ── header: ghost strip ── */
+header{
+  position:fixed;top:0;left:0;right:0;z-index:20;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 24px;
+  pointer-events:none;
+  animation:fadeIn .8s ease both;
+  /* relative so the centred byline can use absolute positioning */
+  position:fixed;
+}
+.wordmark{
+  font-family:var(--serif);font-size:15px;font-style:italic;font-weight:400;
+  color:var(--ink);opacity:.5;letter-spacing:.01em;
+  text-decoration:none;
+}
+.byline{
+  font-family:var(--sans);font-size:9px;font-weight:300;
+  color:var(--dim);letter-spacing:.02em;
+  text-decoration:none;opacity:.6;
+  transition:opacity .2s;
+  position:absolute;left:50%;transform:translateX(-50%);
+}
+.byline:hover{opacity:1;}
+.hdr-right{
+  display:flex;align-items:center;gap:8px;
+  pointer-events:all;
+}
+#badge{
+  font-size:9px;font-weight:400;color:var(--dim);
+  letter-spacing:.01em;
+  background:rgba(0,0,0,.04);
+  border:1px solid var(--line);
+  border-radius:40px;
+  padding:4px 10px;
+  display:inline-block;
+}
+#badge:empty{display:none;}
+
+/* ── pill buttons ── */
+.pill{
+  font-family:var(--sans);font-size:10px;font-weight:400;
+  letter-spacing:.02em;
+  background:var(--ink);color:#fff;
+  border:none;border-radius:40px;
+  padding:7px 15px;cursor:pointer;
+  transition:opacity .18s,transform .12s;
+  line-height:1;
+}
+.pill:hover{opacity:.78;transform:translateY(-1px);}
+.pill:active{transform:scale(.97);opacity:.75;}
+.pill.ghost{
+  background:transparent;color:var(--ink);
+  border:1px solid var(--line);
+  backdrop-filter:blur(8px);
+  background:var(--glass);
+}
+.pill.ghost:hover{background:rgba(0,0,0,.04);border-color:rgba(0,0,0,.14);}
+
+/* ── drop screen ── */
+#drop{
+  position:fixed;inset:0;z-index:50;
+  background:#fff;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:14px;
+  transition:opacity .5s cubic-bezier(.4,0,.2,1);
+}
+#drop.gone{opacity:0;pointer-events:none;}
+
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(18px);}
+  to  {opacity:1;transform:translateY(0);}
+}
+@keyframes fadeIn{
+  from{opacity:0;}to{opacity:1;}
+}
+@keyframes cardReveal{
+  from{opacity:0;transform:translateY(28px) scale(.98);}
+  to  {opacity:1;transform:translateY(0) scale(1);}
+}
+@keyframes iconPop{
+  0%  {opacity:0;transform:scale(.6);}
+  70% {transform:scale(1.08);}
+  100%{opacity:1;transform:scale(1);}
+}
+
+.dz{
+  width:min(400px,88vw);
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:36px 32px;
+  text-align:center;
+  cursor:pointer;
+  transition:border-color .2s,background .2s,box-shadow .2s;
+  animation:cardReveal .7s cubic-bezier(.22,1,.36,1) .05s both;
+}
+.dz:hover{
+  box-shadow:0 8px 32px rgba(0,0,0,.06);
+}
+.dz:hover,.dz.over{
+  border-color:rgba(0,0,0,.18);
+  background:rgba(0,0,0,.015);
+}
+.dz-icon{
+  width:32px;height:32px;margin:0 auto 14px;
+  border:1px solid var(--line);border-radius:50%;
+  animation:iconPop .5s cubic-bezier(.22,1,.36,1) .2s both;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--dim);font-size:14px;
+  transition:border-color .2s,color .2s;
+}
+.dz:hover .dz-icon{border-color:rgba(0,0,0,.2);color:var(--ink);}
+.dz-title{
+  font-family:var(--serif);font-size:18px;font-style:italic;font-weight:400;
+  color:var(--ink);margin-bottom:4px;opacity:.8;
+  animation:fadeUp .55s cubic-bezier(.22,1,.36,1) .28s both;
+}
+.dz-sub{
+  font-size:10px;font-weight:300;color:var(--dim);
+  margin-bottom:18px;letter-spacing:.01em;
+  animation:fadeUp .55s cubic-bezier(.22,1,.36,1) .34s both;
+}
+.btn-hint{
+  font-size:9px;font-weight:300;color:var(--dim);
+  letter-spacing:.01em;margin-top:8px;
+  opacity:.6;
+  animation:fadeUp .55s cubic-bezier(.22,1,.36,1) .44s both;
+}
+
+/* choose files button inside drop zone */
+.btn-pick-inner{
+  display:inline-block;
+  font-family:var(--sans);font-size:10px;font-weight:400;
+  animation:fadeUp .55s cubic-bezier(.22,1,.36,1) .40s both;
+  letter-spacing:.02em;
+  background:var(--ink);color:#fff;
+  border:none;border-radius:40px;
+  padding:9px 20px;cursor:pointer;
+  transition:opacity .18s;
+}
+.btn-pick-inner:hover{opacity:.78;}
+
+.btn-demo{
+  font-size:10px;font-weight:300;color:var(--dim);
+  background:transparent;border:none;
+  cursor:pointer;letter-spacing:.01em;
+  padding:4px 8px;
+  transition:color .18s;
+  animation:fadeUp .65s cubic-bezier(.22,1,.36,1) .1s both;
+}
+.btn-demo:hover{color:var(--ink);}
+
+.dz-hint{
+  font-size:9px;font-weight:300;color:var(--dim);
+  letter-spacing:.01em;opacity:.55;
+  animation:fadeUp .55s cubic-bezier(.22,1,.36,1) .55s both;
+}
+.drop-credit{
+  font-size:9px;font-weight:300;color:var(--dim);
+  letter-spacing:.02em;opacity:.4;
+  text-decoration:none;margin-top:2px;
+  transition:opacity .2s;
+  animation:fadeUp .55s cubic-bezier(.22,1,.36,1) .60s both;
+}
+.drop-credit:hover{opacity:.8;text-decoration:underline;}
+
+/* ── fullscreen overlay ── */
+#ov{
+  position:fixed;inset:0;z-index:60;
+  background:rgba(255,255,255,0);
+  display:flex;align-items:center;justify-content:center;
+  pointer-events:none;
+  transition:background .35s;
+}
+#ov.on{background:rgba(255,255,255,0.96);pointer-events:all;cursor:zoom-out;}
+#ov img{
+  max-width:84vw;max-height:84vh;
+  opacity:0;transform:scale(.95);
+  transition:opacity .3s,transform .3s;
+  border-radius:4px;
+}
+#ov.on img{opacity:1;transform:scale(1);}
+#ov-x{
+  position:absolute;top:24px;right:24px;
+  opacity:0;transition:opacity .25s;
+  font-size:10px;font-weight:300;letter-spacing:.04em;
+  color:var(--dim);cursor:pointer;
+  padding:4px;
+}
+#ov.on #ov-x{opacity:1;}
+
+/* ── sidebar ── */
+#sb{
+  position:fixed;
+  top:60px;
+  right:20px;
+  z-index:30;
+  width:262px;
+  max-height:calc(100vh - 80px);
+  background:rgba(255,255,255,0.94);
+  backdrop-filter:blur(28px) saturate(1.8);
+  -webkit-backdrop-filter:blur(28px) saturate(1.8);
+  border:1px solid var(--line);
+  border-radius:14px;
+  box-shadow:0 24px 60px rgba(0,0,0,.12), 0 8px 20px rgba(0,0,0,.07), 0 1px 3px rgba(0,0,0,.05);
+  display:flex;flex-direction:column;
+  overflow:visible; /* allow arrow to poke out */
+  transition:opacity .22s cubic-bezier(.4,0,.2,1),
+             transform .22s cubic-bezier(.4,0,.2,1);
+  transform-origin:top right;
+}
+/* inner scroll container */
+#sb > .sb-body{ overflow-y:auto; border-radius:0 0 14px 14px; }
+/* overflow clip just on the scrollable area */
+#sb::before{
+  content:'';
+  position:absolute;
+  top:-6px; right:28px;
+  width:10px; height:10px;
+  background:rgba(255,255,255,0.94);
+  border-left:1px solid var(--line);
+  border-top:1px solid var(--line);
+  transform:rotate(45deg);
+  border-radius:1px;
+  z-index:1;
+}
+#sb.off{
+  opacity:0;
+  transform:scale(.94) translateY(-8px);
+  pointer-events:none;
+}
+
+/* sidebar close button — floats in top-right, above the content */
+.sb-hdr{display:none;} /* header removed — Controls label lives in main header */
+.sb-x{
+  position:absolute;top:10px;right:10px;z-index:2;
+  background:none;border:none;cursor:pointer;
+  color:var(--dim);font-size:16px;font-weight:300;
+  line-height:1;padding:0;width:24px;height:24px;
+  display:flex;align-items:center;justify-content:center;
+  transition:color .15s, background .15s;
+  border-radius:50%;
+}
+.sb-x:hover{color:var(--ink);background:rgba(0,0,0,.05);}
+
+.sb-body{
+  flex:1;overflow-y:auto;padding:40px 16px 12px;
+  scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.1) transparent;
+}
+.sb-body::-webkit-scrollbar{width:3px;}
+.sb-body::-webkit-scrollbar-thumb{background:rgba(0,0,0,.1);border-radius:2px;}
+
+/* ── sections ── */
+.sec{margin-bottom:20px;}
+.sec-lbl{
+  font-size:9px;font-weight:400;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--dim);
+  margin-bottom:10px;
+  display:flex;align-items:center;gap:8px;
+}
+.sec-lbl::after{
+  content:'';flex:1;height:1px;
+  background:var(--line);
+}
+
+/* ── shape buttons ── */
+.sg{display:flex;flex-wrap:wrap;gap:4px;}
+.sbtn{
+  border:1px solid var(--line);
+  border-radius:40px;
+  background:transparent;
+  cursor:pointer;
+  display:flex;flex-direction:row;align-items:center;justify-content:center;
+  gap:5px;padding:6px 10px;
+  font-family:var(--sans);font-size:9px;font-weight:400;
+  letter-spacing:.02em;text-transform:uppercase;
+  color:var(--dim);
+  transition:border-color .15s,color .15s,background .15s;
+  white-space:nowrap;
+}
+.sbtn:hover{border-color:rgba(0,0,0,.2);color:var(--ink);}
+.sbtn.on{
+  border-color:var(--ink);background:var(--ink);color:#fff;
+}
+.si{font-size:13px;line-height:1;opacity:.8;}
+.sbtn.on .si{opacity:1;}
+
+/* ── presets ── */
+.pr{display:flex;gap:4px;flex-wrap:wrap;}
+.pbtn{
+  font-family:var(--sans);font-size:9px;font-weight:300;
+  letter-spacing:.02em;
+  background:transparent;color:var(--dim);
+  border:1px solid var(--line);
+  border-radius:40px;padding:5px 11px;
+  cursor:pointer;transition:all .15s;
+}
+.pbtn:hover{color:var(--ink);border-color:rgba(0,0,0,.16);}
+.pbtn.on{
+  background:var(--ink);color:#fff;border-color:var(--ink);
+  font-weight:500;
+}
+
+/* ── sliders ── */
+.sl{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;}
+.sl label{
+  display:flex;justify-content:space-between;align-items:baseline;
+  font-size:9px;font-weight:300;color:var(--dim);
+  letter-spacing:.01em;
+}
+.sl label span{
+  color:var(--ink);font-weight:400;font-size:9px;
+  font-family:'DM Mono',monospace;
+  background:rgba(0,0,0,.04);
+  border-radius:3px;
+  padding:1px 5px;
+  letter-spacing:.01em;
+}
+input[type=range]{
+  width:100%;height:2px;
+  -webkit-appearance:none;appearance:none;
+  background:rgba(0,0,0,.08);
+  outline:none;cursor:pointer;
+  border-radius:2px;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  width:12px;height:12px;
+  background:#fff;
+  border:1.5px solid var(--ink);
+  border-radius:50%;
+  box-shadow:0 1px 4px rgba(0,0,0,.15);
+  transition:transform .15s,background .15s,box-shadow .15s;
+}
+input[type=range]:hover::-webkit-slider-thumb{
+  background:var(--ink);transform:scale(1.15);
+  box-shadow:0 2px 8px rgba(0,0,0,.2);
+}
+input[type=range]::-moz-range-thumb{
+  width:12px;height:12px;
+  background:#fff;border:1.5px solid var(--ink);
+  border-radius:50%;border:none;
+  box-shadow:0 1px 4px rgba(0,0,0,.15);
+}
+
+/* ── export ── */
+.ex-row{display:flex;gap:6px;}
+.ex-row .pill{flex:1;text-align:center;padding:8px 6px;font-size:9px;font-weight:400;}
+
+/* ── image strip ── */
+#strip{
+  flex-shrink:0;
+  padding:10px 12px;
+  border-top:1px solid var(--line);
+  border-radius:0 0 14px 14px;
+  display:flex;gap:5px;overflow-x:auto;
+  min-height:58px;align-items:center;
+  scrollbar-width:none;
+}
+#strip::-webkit-scrollbar{display:none;}
+.sth{
+  width:48px;height:48px;flex-shrink:0;
+  border-radius:4px;object-fit:cover;cursor:pointer;
+  opacity:.55;
+  transition:opacity .15s,transform .15s;
+  border:1.5px solid transparent;
+}
+.sth:hover{opacity:.9;transform:scale(1.06);}
+.sth.on{opacity:1;border-color:var(--ink);}
+.sadd{
+  width:48px;height:48px;flex-shrink:0;
+  border-radius:4px;
+  border:1px dashed rgba(0,0,0,.14);
+  background:transparent;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;font-weight:300;color:var(--dim);
+  transition:all .15s;
+}
+#shuffle-btn{
+  transition:all .15s, transform .3s cubic-bezier(.34,1.56,.64,1);
+  font-family:var(--sans);
+}
+.sadd:hover{border-color:rgba(0,0,0,.3);color:var(--ink);}
+
+/* FAB removed */
+
+/* ── gesture hint ── */
+#hint{
+  position:fixed;bottom:28px;left:50%;
+  transform:translateX(-50%);
+  font-size:9px;font-weight:300;
+  letter-spacing:.06em;text-transform:uppercase;
+  color:var(--dim);
+  opacity:0;transition:opacity .7s;
+  pointer-events:none;z-index:5;
+  white-space:nowrap;
+}
+#hint.show{opacity:.4;}
+
+input[type=file]{display:none;}
+
+/* accessibility — keyboard focus */
+:focus-visible{
+  outline:2px solid var(--ink);
+  outline-offset:2px;
+  border-radius:var(--r);
+}
+button:focus-visible,input:focus-visible{
+  outline:2px solid var(--ink);
+  outline-offset:2px;
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="vig"></div>
+<div id="grain"></div>
+<input type="file" id="fi" accept="image/*" multiple>
+<input type="file" id="fi2" accept="image/*" multiple>
+
+<header>
+  <div class="wordmark">Orbit Gallery</div>
+  <a class="byline" href="https://x.com/art_akshat" target="_blank" rel="noopener">by Akshat Agarwal</a>
+  <div class="hdr-right">
+    <span id="badge"></span>
+    <button class="pill ghost" id="btn-ss">
+      <svg width="11" height="11" viewBox="0 0 11 11" fill="none" style="display:inline-block;vertical-align:middle;margin-right:5px">
+        <path d="M5.5 1v6M2.5 5l3 3 3-3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M1 9.5h9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+      </svg>Save</button>
+    <button class="pill" id="btn-open">Controls</button>
+  </div>
+</header>
+
+<div id="drop">
+  <div class="dz" id="dz">
+    <div class="dz-icon">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M7 1v8M3.5 4.5L7 1l3.5 3.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M1 11v1a1 1 0 001 1h10a1 1 0 001-1v-1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="dz-title">Drop your photos</div>
+    <div class="dz-sub">JPG · PNG · WEBP — any size, any number</div>
+    <button class="btn-pick-inner" id="btn-pick">Choose files</button>
+    <div class="btn-hint">or drag anywhere on this page</div>
+  </div>
+  <button class="btn-demo" id="btn-demo">Try with demo →</button>
+  <div class="dz-hint">Everything runs in your browser — nothing is uploaded</div>
+  <a class="drop-credit" href="https://x.com/art_akshat" target="_blank" rel="noopener">by Akshat Agarwal</a>
+</div>
+
+<div id="ov"><span id="ov-x">close ×</span><img id="ov-img" src="" alt=""></div>
+
+<div id="sb" class="off">
+  <button class="sb-x" id="sb-x">×</button>
+  <div class="sb-body">
+
+    <div class="sec">
+      <div class="sec-lbl">Shape</div>
+      <div class="sg">
+        <button class="sbtn on" data-shape="cylinder"><span class="si">⌀</span>Drum</button>
+        <button class="sbtn" data-shape="sphere"><span class="si">◕</span>Sphere</button>
+        <button class="sbtn" data-shape="torus"><span class="si">◯</span>Ring</button>
+        <button class="sbtn" data-shape="helix"><span class="si">∿</span>Coil</button>
+        <button class="sbtn" data-shape="plane"><span class="si">⊟</span>Grid</button>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-lbl">Preset</div>
+      <div class="pr">
+        <button class="pbtn on" data-preset="default">Default</button>
+        <button class="pbtn" data-preset="tight">Tight</button>
+        <button class="pbtn" data-preset="wide">Wide</button>
+        <button class="pbtn" data-preset="drama">Drama</button>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-lbl">Feel</div>
+      <div class="sl"><label>Speed <span id="ov-speed">0.28</span></label>
+        <input type="range" id="v-speed" min="0" max="2" step="0.01" value="0.28"></div>
+      <div class="sl"><label>Density <span id="ov-count">16</span></label>
+        <input type="range" id="v-count" min="4" max="48" step="1" value="16"></div>
+      <div class="sl"><label>Scale <span id="ov-radius">3.8</span></label>
+        <input type="range" id="v-radius" min="1.5" max="9" step="0.1" value="3.8"></div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-lbl">Export</div>
+      <div class="ex-row">
+        <button class="pill" id="btn-img">Screenshot</button>
+        <button class="pill ghost" id="btn-vid">Record 5s</button>
+      </div>
+    </div>
+
+  </div>
+  <div id="strip"><button class="sadd" id="sadd">+</button>
+    <button class="sadd" id="shuffle-btn" title="Shuffle photos" style="font-size:13px;">⇄</button></div>
+</div>
+
+
+
+<div id="hint">Drag to rotate · Pinch to zoom</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ── utils ──────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+function sl(id, rebuild) {
+  const el=$('v-'+id), out=$('ov-'+id);
+  if(!el) return ()=>0;
+  el.addEventListener('input',()=>{
+    const v=parseFloat(el.value);
+    out.textContent=(v%1===0)?v:v.toFixed(2);
+    if(rebuild) build();
+  });
+  return ()=>parseFloat(el.value);
+}
+const gSpeed  = sl('speed');
+const gCount  = sl('count', true);
+const gRadius = sl('radius', true);
+
+// ── presets ─────────────────────────────────────────────
+const PRESETS = {
+  default:{ speed:.28, count:16, radius:3.8},
+  tight:  { speed:.20, count:22, radius:2.8, sharp:3.5, minop:.03, maxsc:1.35 },
+  wide:   { speed:.14, count:12, radius:5.5, sharp:1.4, minop:.10, maxsc:1.12 },
+  drama:  { speed:.36, count:14, radius:4.2, sharp:4.5, minop:.01, maxsc:1.55 },
+};
+function applyPreset(name) {
+  const p=PRESETS[name]; if(!p) return;
+  Object.entries(p).forEach(([k,v])=>{
+    const el=$('v-'+k), out=$('ov-'+k); if(!el) return;
+    el.value=v; out.textContent=(v%1===0)?v:v.toFixed(2);
+  });
+  document.querySelectorAll('.pbtn').forEach(b=>b.classList.toggle('on',b.dataset.preset===name));
+  build();
+}
+document.querySelectorAll('.pbtn').forEach(b=>b.addEventListener('click',()=>applyPreset(b.dataset.preset)));
+
+// ── shape ────────────────────────────────────────────────
+let shape = 'cylinder';
+document.querySelectorAll('.sbtn').forEach(b=>{
+  b.addEventListener('click',()=>{
+    if(shape===b.dataset.shape) return;
+    shape=b.dataset.shape;
+    document.querySelectorAll('.sbtn').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    // Fade photos out before rebuild for a clean transition
+    setTimeout(()=>build(), 180);
+  });
+});
+
+// ── sidebar ─────────────────────────────────────────────
+const sb=$('sb');
+function openSB(){
+  sb.classList.remove('off');
+  $('btn-open').style.background='rgba(0,0,0,0.08)';
+  $('btn-open').style.color='var(--ink)';
+}
+function closeSB(){
+  sb.classList.add('off');
+  $('btn-open').style.background='';
+  $('btn-open').style.color='';
+}
+$('sb-x').addEventListener('click', closeSB);
+$('btn-open').addEventListener('click', openSB);
+
+// ── images ───────────────────────────────────────────────
+let imgs=[];
+const fi=$('fi'), fi2=$('fi2');
+$('btn-pick').addEventListener('click',()=>fi.click());
+$('btn-demo').addEventListener('click', loadDemo);
+fi.addEventListener('change', e=>handleFiles(e.target.files));
+fi2.addEventListener('change', e=>handleFiles(e.target.files));
+$('sadd').addEventListener('click',()=>fi2.click());
+
+const dz=$('dz');
+dz.addEventListener('dragover', e=>{ e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+dz.addEventListener('drop', e=>{ e.preventDefault(); dz.classList.remove('over'); handleFiles(e.dataTransfer.files); });
+document.addEventListener('dragover', e=>e.preventDefault());
+document.addEventListener('drop', e=>{ e.preventDefault(); if(e.target!==dz) handleFiles(e.dataTransfer.files); });
+
+function handleFiles(files) {
+  Array.from(files).filter(f=>f.type.startsWith('image/')).forEach(file=>{
+    const r=new FileReader();
+    r.onload=ev=>{
+      const img=new Image();
+      img.onload=()=>{
+        const tex=new THREE.Texture(img);
+        tex.minFilter=THREE.LinearFilter; tex.needsUpdate=true;
+        const aspect=img.naturalHeight/img.naturalWidth;
+        const entry={url:ev.target.result, tex, img, aspect};
+        imgs.push(entry);
+        addThumb(entry, imgs.length-1);
+        $('badge').textContent=imgs.length+' photos';
+        if(imgs.length===1){ $('drop').classList.add('gone'); showHint(); }
+        build();
+      };
+      img.src=ev.target.result;
+    };
+    r.readAsDataURL(file);
+  });
+}
+function addThumb(entry, idx) {
+  const t=document.createElement('img');
+  t.className='sth'; t.src=entry.url;
+  $('strip').insertBefore(t,$('sadd'));
+}
+
+function shuffleImgs() {
+  if (imgs.length < 2) return;
+  // Fisher-Yates shuffle
+  for (let i = imgs.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [imgs[i], imgs[j]] = [imgs[j], imgs[i]];
+  }
+  // Rebuild strip thumbnails
+  const strip = $('strip');
+  // Remove all thumbs (keep sadd and shuffle-btn)
+  strip.querySelectorAll('.sth').forEach(t => t.remove());
+  imgs.forEach((entry, i) => addThumb(entry, i));
+  // Rebuild 3D scene with new order
+  build();
+  // Animate the button
+  const btn = $('shuffle-btn');
+  btn.style.transform = 'rotate(180deg)';
+  setTimeout(() => { btn.style.transform = ''; }, 300);
+}
+
+$('shuffle-btn').addEventListener('click', shuffleImgs);
+
+// ── demo ─────────────────────────────────────────────────
+const PAIRS=[
+  ['#7aadce','#f2d4d0'],['#e8e000','#f0ecd8'],['#c8f040','#207060'],
+  ['#e880c0','#8a7820'],['#e83800','#f5f0e0'],['#f080e8','#18b880'],
+  ['#3870c8','#f5e8d0'],['#e85820','#0898a0'],['#c8f040','#e880c0'],
+  ['#2a7030','#f5d820'],['#1a3860','#f0e8d0'],['#e86858','#88b890'],
+];
+const tcache={};
+function mkTile(i) {
+  if(tcache[i]) return tcache[i];
+  const S=512, cv=document.createElement('canvas');
+  cv.width=cv.height=S;
+  const cx=cv.getContext('2d'), [a,b]=PAIRS[i%PAIRS.length], t=S/4;
+  for(let r=0;r<4;r++) for(let c=0;c<4;c++){
+    cx.fillStyle=(r+c)%2===0?a:b; cx.fillRect(c*t,r*t,t,t);
+  }
+  const tx=new THREE.CanvasTexture(cv);
+  tx.minFilter=THREE.LinearFilter; tcache[i]=tx; return tx;
+}
+function loadDemo() {
+  for(let i=0;i<24;i++){
+    const tx=mkTile(i);
+    const cv=document.createElement('canvas'); cv.width=cv.height=64;
+    const cx=cv.getContext('2d'),[a,b]=PAIRS[i%PAIRS.length],t=16;
+    for(let r=0;r<4;r++) for(let c=0;c<4;c++){cx.fillStyle=(r+c)%2===0?a:b;cx.fillRect(c*t,r*t,t,t);}
+    imgs.push({url:cv.toDataURL(),tex:tx,img:null,demo:true,aspect:1.0});
+    addThumb({url:cv.toDataURL()}, i);
+  }
+  $('badge').textContent='24 demo tiles';
+  $('drop').classList.add('gone');
+  showHint(); build();
+}
+function getEntry(i){
+  if(imgs.length){ const e=imgs[i%imgs.length]; return {tex:e.tex, aspect:e.aspect||1.0}; }
+  return {tex:mkTile(i), aspect:1.0};
+}
+
+// ── three setup ──────────────────────────────────────────
+const canvas=$('c');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,preserveDrawingBuffer:true});
+renderer.setClearColor(0xffffff); renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.sortObjects=true;
+const scene=new THREE.Scene();
+const cam=new THREE.PerspectiveCamera(44,1,.05,300);
+const dummy=new THREE.Object3D();
+
+function resize(){
+  const w=canvas.clientWidth,h=canvas.clientHeight;
+  renderer.setSize(w,h,false); cam.aspect=w/h; cam.updateProjectionMatrix();
+}
+resize(); addEventListener('resize',resize);
+
+const group=new THREE.Group(); scene.add(group);
+let photos=[];
+
+// ── build ─────────────────────────────────────────────────
+function build(){
+  while(group.children.length){
+    const m=group.children[0]; m.geometry.dispose(); m.material.dispose(); group.remove(m);
+  }
+  photos=[];
+  const N   = Math.min(Math.round(gCount())*3, 200);
+  const R   = gRadius();
+  const pw  = 0.88;
+  const gap = 1.5;
+  const rows= 3;
+  const perRow=Math.round(gCount());
+  const slotW=(2*Math.PI*R)/Math.max(perRow,6);
+  // Cap photo width so it never exceeds slot — prevents overlap at any radius
+  const maxW = slotW * 0.88;
+  const W = Math.min(maxW, 1.2);  // also cap absolute size so huge radius doesn't = huge tiles
+  const PHI=Math.PI*(3-Math.sqrt(5));
+  const lat=0.88;
+
+  for(let i=0;i<Math.min(shape==='cylinder'?perRow*rows:Math.max(perRow*rows,20), 200);i++){
+    const {tex, aspect} = getEntry(i);
+    const H = W * aspect;          // ← real aspect ratio
+    const geo=new THREE.PlaneGeometry(W, H);
+    const mat=new THREE.MeshBasicMaterial({
+      map:tex,
+      side:THREE.DoubleSide,
+      // alphaTest discards transparent pixels (PNG backgrounds)
+      // while keeping depthWrite:true so depth sorting stays correct
+      alphaTest:0.1,
+    });
+    const mesh=new THREE.Mesh(geo,mat);
+    let x=0,y=0,z=0,type='out',bTheta=0;
+
+    if(shape==='cylinder'){
+      const r2=Math.floor(i/perRow), c2=i%perRow;
+      const theta=(c2/perRow)*Math.PI*2;
+      x=Math.cos(theta)*R; z=Math.sin(theta)*R;
+      y=(r2-(rows-1)/2)*gap; type='in'; bTheta=theta;
+    } else if(shape==='sphere'){
+      const yf=(1-(i/(Math.max(N-1,1)))*2)*lat;
+      const rr=Math.sqrt(Math.max(0,1-yf*yf));
+      const th=PHI*i;
+      x=rr*Math.cos(th)*R; y=yf*R; z=rr*Math.sin(th)*R; bTheta=th;
+    } else if(shape==='torus'){
+      // Evenly distribute around the ring only (u), stack rows around tube (v)
+      // This gives clean even columns around circumference, clean rows around tube
+      const tubeRows = 3; // rows around the tube cross-section
+      const ringCols = Math.ceil(N / tubeRows); // columns around the ring
+      const col = i % ringCols;
+      const row = Math.floor(i / ringCols);
+      const minor = R * 0.35;
+      const u = (col / ringCols) * Math.PI * 2;           // around big ring
+      const v = (row / tubeRows) * Math.PI * 2;           // around tube
+      x=(R+minor*Math.cos(v))*Math.cos(u); y=minor*Math.sin(v);
+      z=(R+minor*Math.cos(v))*Math.sin(u); bTheta=u;
+    } else if(shape==='helix'){
+      const t2=i/(N-1), th2=t2*3*Math.PI*2, ht=R*2.2*lat;
+      x=Math.cos(th2)*R; y=(t2-.5)*ht; z=Math.sin(th2)*R; bTheta=th2;
+    } else { // plane
+      // Use perRow for columns — consistent with other shapes' density slider
+      // Spacing = W + fixed gutter, independent of per-photo aspect ratio
+      const gutter = W * 0.1;          // 10% gap between tiles
+      const stepX  = W + gutter;
+      const stepY  = W * 1.25 + gutter; // slightly taller rows for portrait fit
+      const cols   = perRow;
+      const rws    = Math.ceil(N / cols);
+      const ox     = -(cols - 1) * stepX / 2;
+      const oy     = -(rws  - 1) * stepY / 2;
+      x = ox + (i % cols) * stepX;
+      y = oy + Math.floor(i / cols) * stepY;
+      z = 0; type='cam';
+    }
+
+    mesh.position.set(x,y,z);
+    if(type==='in'){ dummy.position.set(x,y,z); dummy.lookAt(0,y,0); mesh.quaternion.copy(dummy.quaternion); }
+    else if(type==='out'){ dummy.position.set(x,y,z); dummy.lookAt(0,0,0); mesh.quaternion.copy(dummy.quaternion); }
+    group.add(mesh);
+    photos.push({mesh, bx:x,by:y,bz:z, bTheta, type, w:W, h:H,
+      liftCur:0,   // current lift toward camera (lerped)
+      imgIdx:i%Math.max(imgs.length,1)});
+  }
+}
+
+// ── camera orbit state (free rotation) ──────────────────
+let camAz=0, camEl=0.22, camDist=11;
+const CAM_EL_MIN=-Math.PI/2+.05, CAM_EL_MAX=Math.PI/2-.05;
+
+function updateCamera(){
+  const x=camDist*Math.cos(camEl)*Math.sin(camAz);
+  const y=camDist*Math.sin(camEl);
+  const z=camDist*Math.cos(camEl)*Math.cos(camAz);
+  cam.position.set(x,y,z);
+  cam.lookAt(0,0,0);
+  cam.up.set(0,1,0);
+}
+
+// ── pointer input (mouse + touch) ───────────────────────
+let ptr={drag:false, didDrag:false, lx:0, ly:0, velAz:0, velEl:0};
+// pinch
+let pinch={active:false, dist0:0, dist0cam:0};
+
+function ptDist(e){ return Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); }
+
+canvas.addEventListener('mousedown', e=>{
+  ptr.drag=true; ptr.didDrag=false; ptr.lx=e.clientX; ptr.ly=e.clientY;
+  ptr.velAz=0; ptr.velEl=0; canvas.style.cursor='grabbing';
+});
+addEventListener('mousemove', e=>{
+  if(!ptr.drag) return;
+  const dx=e.clientX-ptr.lx, dy=e.clientY-ptr.ly;
+  const dAz=dx*.004, dEl=dy*.003;
+  camAz-=dAz; camEl=Math.max(CAM_EL_MIN,Math.min(CAM_EL_MAX,camEl-dEl));
+  ptr.velAz=dAz; ptr.velEl=dEl;
+  ptr.lx=e.clientX; ptr.ly=e.clientY;
+  if(Math.abs(dx)+Math.abs(dy)>2) ptr.didDrag=true;
+});
+addEventListener('mouseup',()=>{ ptr.drag=false; canvas.style.cursor='default'; });
+
+// wheel zoom
+canvas.addEventListener('wheel', e=>{
+  e.preventDefault();
+  camDist=Math.max(3,Math.min(22, camDist+e.deltaY*.012));
+},{passive:false});
+
+// touch
+canvas.addEventListener('touchstart', e=>{
+  if(e.touches.length===1){
+    ptr.drag=true; ptr.didDrag=false;
+    ptr.lx=e.touches[0].clientX; ptr.ly=e.touches[0].clientY;
+    ptr.velAz=0; ptr.velEl=0;
+  } else if(e.touches.length===2){
+    ptr.drag=false;
+    pinch.active=true; pinch.dist0=ptDist(e); pinch.dist0cam=camDist;
+  }
+},{passive:true});
+addEventListener('touchmove', e=>{
+  if(e.touches.length===2 && pinch.active){
+    const d=ptDist(e);
+    camDist=Math.max(3,Math.min(22, pinch.dist0cam*(pinch.dist0/d)));
+    return;
+  }
+  if(!ptr.drag||e.touches.length!==1) return;
+  const dx=e.touches[0].clientX-ptr.lx, dy=e.touches[0].clientY-ptr.ly;
+  const dAz=dx*.004, dEl=dy*.003;
+  camAz-=dAz; camEl=Math.max(CAM_EL_MIN,Math.min(CAM_EL_MAX,camEl-dEl));
+  ptr.velAz=dAz; ptr.velEl=dEl;
+  ptr.lx=e.touches[0].clientX; ptr.ly=e.touches[0].clientY;
+  if(Math.abs(dx)+Math.abs(dy)>2) ptr.didDrag=true;
+},{passive:true});
+addEventListener('touchend', e=>{
+  if(e.touches.length<2) pinch.active=false;
+  if(e.touches.length===0){ ptr.drag=false; }
+});
+
+// ── raycaster / click ────────────────────────────────────
+const rc=new THREE.Raycaster(), mouse=new THREE.Vector2(-9,-9);
+let hovIdx=-1;
+canvas.addEventListener('mousemove', e=>{
+  mouse.x=(e.clientX/canvas.clientWidth)*2-1;
+  mouse.y=-(e.clientY/canvas.clientHeight)*2+1;
+});
+canvas.addEventListener('click', e=>{
+  if(ptr.didDrag) return;
+  rc.setFromCamera(mouse,cam);
+  const hits=rc.intersectObjects(photos.map(p=>p.mesh));
+  if(hits.length){
+    const p=photos.find(ph=>ph.mesh===hits[0].object);
+    if(p && imgs[p.imgIdx] && !imgs[p.imgIdx].demo){
+      $('ov-img').src=imgs[p.imgIdx].url;
+      $('ov').classList.add('on');
+    }
+  }
+});
+$('ov').addEventListener('click',e=>{
+  if(e.target===e.currentTarget||e.target.id==='ov-x'){
+    $('ov').classList.remove('on'); $('ov-img').src='';
+  }
+});
+
+// ── auto-spin (cylinder only spins, others orbit) ───────
+let autoAz=0, wobT=0, lt=null;
+
+let paused = false;
+
+function tick(ts){
+  requestAnimationFrame(tick);
+  if(!lt) lt=ts;
+  const dt = paused ? 0 : Math.min((ts-lt)/1000,.05); lt=ts;
+  const speed=gSpeed();
+
+  wobT+=dt;
+
+  // inertia decay
+  if(!ptr.drag && !pinch.active){
+    camAz-=ptr.velAz; ptr.velAz*=.88;
+    camEl=Math.max(CAM_EL_MIN,Math.min(CAM_EL_MAX,camEl-ptr.velEl));
+    ptr.velEl*=.88;
+  }
+
+  // auto-rotate camera azimuth
+  autoAz+=speed*dt*.5;
+  if(!ptr.drag && !pinch.active) camAz-=speed*dt*.5;
+
+  // For cylinder: keep group static, spin via theta offset
+  // For others: group stays static too — camera orbits
+  group.rotation.set(0,0,0);
+  updateCamera();
+
+  // hover
+  rc.setFromCamera(mouse,cam);
+  const hits=rc.intersectObjects(photos.map(p=>p.mesh));
+  hovIdx=hits.length?photos.findIndex(p=>p.mesh===hits[0].object):-1;
+  canvas.style.cursor=ptr.drag?'grabbing':(hovIdx>=0?'zoom-in':'default');
+
+  const R=gRadius(), N=photos.length;
+
+
+
+  renderer.render(scene,cam);
+}
+requestAnimationFrame(tick);
+
+// ── export ───────────────────────────────────────────────
+$('btn-ss').addEventListener('click', snap);
+$('btn-img').addEventListener('click', snap);
+function snap(){
+  renderer.render(scene,cam);
+}
+
+function snap(){
+  renderer.render(scene,cam);
+  const a=document.createElement('a'); a.download='orbit-gallery.png';
+  a.href=canvas.toDataURL('image/png'); a.click();
+}
+$('btn-vid').addEventListener('click',()=>{
+  const btn=$('btn-vid');
+  if(!window.MediaRecorder){ alert('Video recording not supported in this browser'); return; }
+  btn.textContent='Recording…'; btn.disabled=true;
+  const stream=canvas.captureStream(30);
+  const rec=new MediaRecorder(stream,{mimeType:'video/webm;codecs=vp9'});
+  const chunks=[];
+  rec.ondataavailable=e=>chunks.push(e.data);
+  rec.onstop=()=>{
+    const blob=new Blob(chunks,{type:'video/webm'});
+    const a=document.createElement('a'); a.download='orbit-gallery.webm';
+    a.href=URL.createObjectURL(blob); a.click();
+    btn.textContent='Record 5s'; btn.disabled=false;
+  };
+  rec.start(); setTimeout(()=>rec.stop(),5000);
+});
+
+// ── hint ─────────────────────────────────────────────────
+function showHint(){
+  const h=$('hint'); h.classList.add('show');
+  setTimeout(()=>h.classList.remove('show'),3500);
+}
+
+// ── keyboard shortcuts ──────────────────────────────────
+// Space = pause/resume, C = controls, 1-5 = shapes, D = demo
+const SHAPE_KEYS = {'1':'cylinder','2':'sphere','3':'torus','4':'helix','5':'plane'};
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === ' ') {
+    paused = !paused;
+    e.preventDefault();
+  } else if (e.key === 'c' || e.key === 'C') {
+    sb.classList.contains('off') ? openSB() : closeSB();
+  } else if (SHAPE_KEYS[e.key]) {
+    if(shape !== SHAPE_KEYS[e.key]){
+      shape = SHAPE_KEYS[e.key];
+      document.querySelectorAll('.sbtn').forEach(b => b.classList.toggle('on', b.dataset.shape === shape));
+      setTimeout(()=>build(), 180);
+    }
+  } else if (e.key === 'Escape') {
+    $('ov').classList.remove('on'); $('ov-img').src = '';
+    if (!sb.classList.contains('off')) closeSB();
+  } else if (e.key === 'd' || e.key === 'D') {
+    if (!imgs.length) loadDemo();
+  }
+});
+
+// ── close sidebar on outside click ──
+document.addEventListener('click', e => {
+  if (!sb.classList.contains('off')) {
+    if (!sb.contains(e.target) && e.target.id !== 'btn-open') {
+      closeSB();
+    }
+  }
+});
+
+// ── init ─────────────────────────────────────────────────
+build();
+</script>
+</body>
+</html>

@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=DM+Sans:wght@300;400&amp;display=swap');
+    </style>
+  </defs>
+  
+  <!-- White background -->
+  <rect width="1200" height="630" fill="#ffffff"/>
+  
+  <!-- Subtle grid texture in background -->
+  <rect width="1200" height="630" fill="none" stroke="#f0f0f0" stroke-width="1"
+    stroke-dasharray="none"/>
+  
+  <!-- Simulated cylinder of photo tiles - left side -->
+  <!-- Row 1 top -->
+  <rect x="80"  y="110" width="120" height="90"  rx="4" fill="#e8d0d8" opacity=".55"/>
+  <rect x="210" y="95"  width="130" height="98"  rx="4" fill="#d0dce8" opacity=".62"/>
+  <rect x="350" y="80"  width="135" height="102" rx="4" fill="#d4e8d0" opacity=".70"/>
+  <rect x="495" y="72"  width="138" height="104" rx="4" fill="#ede6b8" opacity=".78"/>
+  <rect x="643" y="68"  width="140" height="106" rx="4" fill="#e8d0d8" opacity=".88"/>
+  <rect x="793" y="72"  width="138" height="104" rx="4" fill="#cce6f0" opacity=".78"/>
+  <rect x="941" y="80"  width="130" height="98"  rx="4" fill="#d4e8d0" opacity=".68"/>
+  <rect x="1081" y="95" width="100" height="90"  rx="4" fill="#d0dce8" opacity=".55"/>
+
+  <!-- Row 2 middle (largest, most prominent) -->
+  <rect x="60"  y="215" width="125" height="95"  rx="4" fill="#ede6b8" opacity=".60"/>
+  <rect x="195" y="205" width="138" height="106" rx="4" fill="#cce6f0" opacity=".72"/>
+  <rect x="343" y="195" width="142" height="112" rx="4" fill="#e8d0d8" opacity=".82"/>
+  <rect x="495" y="188" width="146" height="118" rx="4" fill="#d4e8d0" opacity=".92"/>
+  <rect x="651" y="185" width="148" height="120" rx="4" fill="#d0dce8" fill-opacity="1"/>
+  <rect x="809" y="188" width="146" height="118" rx="4" fill="#ede6b8" opacity=".92"/>
+  <rect x="965" y="195" width="140" height="112" rx="4" fill="#cce6f0" opacity=".82"/>
+  <rect x="1115" y="205" width="70"  height="106" rx="4" fill="#d4e8d0" opacity=".68"/>
+  
+  <!-- Row 2 checkerboard patterns on selected tiles -->
+  <!-- Tile at 495,188 - checker -->
+  <rect x="495" y="188" width="73" height="59" rx="0" fill="#e8e000"/>
+  <rect x="568" y="188" width="73" height="59" rx="0" fill="#f0ecd8"/>
+  <rect x="495" y="247" width="73" height="59" rx="0" fill="#f0ecd8"/>
+  <rect x="568" y="247" width="73" height="59" rx="0" fill="#e8e000"/>
+  
+  <!-- Tile at 651,185 - blue/blush checker -->
+  <rect x="651" y="185" width="74" height="60" rx="0" fill="#7aadce"/>
+  <rect x="725" y="185" width="74" height="60" rx="0" fill="#f2d4d0"/>
+  <rect x="651" y="245" width="74" height="60" rx="0" fill="#f2d4d0"/>
+  <rect x="725" y="245" width="74" height="60" rx="0" fill="#7aadce"/>
+
+  <!-- Tile at 343,195 - lime/teal checker -->
+  <rect x="343" y="195" width="71" height="56" rx="0" fill="#c8f040"/>
+  <rect x="414" y="195" width="71" height="56" rx="0" fill="#207060"/>
+  <rect x="343" y="251" width="71" height="56" rx="0" fill="#207060"/>
+  <rect x="414" y="251" width="71" height="56" rx="0" fill="#c8f040"/>
+
+  <!-- Row 3 bottom -->
+  <rect x="80"  y="320" width="120" height="90"  rx="4" fill="#d0dce8" opacity=".58"/>
+  <rect x="210" y="312" width="132" height="100" rx="4" fill="#e8d0d8" opacity=".68"/>
+  <rect x="352" y="304" width="136" height="106" rx="4" fill="#ede6b8" opacity=".78"/>
+  <rect x="498" y="300" width="140" height="110" rx="4" fill="#cce6f0" opacity=".88"/>
+  <rect x="648" y="298" width="142" height="112" rx="4" fill="#d4e8d0" opacity=".95"/>
+  <rect x="800" y="300" width="140" height="110" rx="4" fill="#d0dce8" opacity=".88"/>
+  <rect x="950" y="304" width="132" height="106" rx="4" fill="#e8d0d8" opacity=".75"/>
+  <rect x="1092" y="312" width="88" height="100" rx="4" fill="#ede6b8" opacity=".58"/>
+
+  <!-- Bottom row fade -->
+  <rect x="100"  y="425" width="115" height="85" rx="4" fill="#d4e8d0" opacity=".40"/>
+  <rect x="225"  y="418" width="128" height="92" rx="4" fill="#cce6f0" opacity=".50"/>
+  <rect x="363"  y="412" width="132" height="98" rx="4" fill="#d0dce8" opacity=".58"/>
+  <rect x="505"  y="408" width="136" height="102" rx="4" fill="#e8d0d8" opacity=".65"/>
+  <rect x="651"  y="406" width="138" height="104" rx="4" fill="#ede6b8" opacity=".68"/>
+  <rect x="799"  y="408" width="134" height="102" rx="4" fill="#d4e8d0" opacity=".58"/>
+  <rect x="943"  y="412" width="126" height="96"  rx="4" fill="#cce6f0" opacity=".48"/>
+  <rect x="1079" y="418" width="90"  height="88"  rx="4" fill="#d0dce8" opacity=".38"/>
+
+  <!-- Vignette edges -->
+  <defs>
+    <radialGradient id="vig" cx="50%" cy="50%" r="60%">
+      <stop offset="30%" stop-color="white" stop-opacity="0"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0.85"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#vig)"/>
+
+  <!-- Wordmark -->
+  <text x="60" y="58" font-family="Georgia, serif" font-size="22" 
+    font-style="italic" fill="#0a0a0a" opacity=".5">Orbit Gallery</text>
+
+  <!-- Tagline -->
+  <text x="600" y="565" font-family="Georgia, serif" font-size="26"
+    font-style="italic" text-anchor="middle" fill="#0a0a0a" opacity=".72">
+    Turn your photos into 3D art
+  </text>
+  <text x="600" y="595" font-family="'DM Sans', sans-serif" font-size="13"
+    font-weight="300" text-anchor="middle" fill="#0a0a0a" opacity=".38" letter-spacing="1">
+    DROP · ORBIT · EXPORT · FREE
+  </text>
+</svg>
