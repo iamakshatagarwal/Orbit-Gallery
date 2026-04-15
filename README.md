@@ -4,7 +4,7 @@
 
 ![Orbit Gallery preview](og-image.svg)
 
-→ **[Orbit Gallery Website](https://iamakshatagarwal.github.io/Orbit-Gallery/)** *(update after deploy)*
+→ **[Orbit Gallery Website](https://iamakshatagarwal.github.io/Orbit-Gallery/)** 
 
 ---
 
